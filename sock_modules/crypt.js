@@ -2,8 +2,27 @@
 /* vim: set ts=4 et: */
 
 /**
- * Crypt module. Does various encryption things
+ * Crypt module. Encrypts or decrypts posts based on user commands, or
+ * randomly.
+ *
+ * The crypt module mainly works with encryption functions, which are
+ * commonly defined inline and wrapped with cryptCmd() to turn them into
+ * SockBot command handlers.
+ *
+ * Encryption functions have the following arguments:
+ * @param {String} s - The text to encrypt
+ * @param {Object} payload - The command arguments and other properties
+ * @param {function} callback - The callback to notify when processing is
+ *                              complete.
+ *
+ * The continuation callback passed to an encryption function has the
+ * following arguments:
+ * @param {String} err - An error message if encryption failed
+ * @param {String} msg - The encrypted text
+ * @param {String} log - The entry to append to the post's processing log
+ *
  * @module crypt
+ * @author PleegWat
  */
 'use strict';
 var discourse;
@@ -45,8 +64,8 @@ exports.priority = undefined;
 exports.version = '0.1.0';
 
 /**
- *  Each command is an encryption mechanism and has the following properties:
- * - handler:        The encryption function.
+ * Each command is an encryption mechanism and has the following properties:
+ * - handler:        A SockBot command handler, likely from cryptCmd()
  * - defaults:       Default values of parameters
  * - params:         Named parameters for this function
  * - randomPickable: If true, random encryption can select this function.
@@ -126,10 +145,10 @@ exports.commands = {
     }
 };
 
-/** 
- * Helper to chain encryptions 
- * @param  {function} handler The handler
- * @return {function} A curried version of that handler, assuming this author is using the word "curried" correctly
+/**
+ * Helper to chain encryptions
+ * @param  {function} handler - An encryption function
+ * @return {function} A SockBot command handler which updates the current draft.
  */
 function cryptCmd(handler) {
     return function(payload, callback) {
@@ -148,9 +167,10 @@ function cryptCmd(handler) {
 }
 
 /**
- * xorbc implementatioon. Homegrown and weak as shit but who cares 
- * @param  {[type]}
- * @return {[type]}
+ * xorbc implementation. Homegrown and weak as shit but who cares
+ * @param  {boolean} decrypt - Whether to use the encrypt or decrypt version of
+ *                             the algorithm.
+ * @return {function} An encryption function
  */
 function xorbc(decrypt) {
     return function(s, payload, callback) {
@@ -186,7 +206,7 @@ function xorbc(decrypt) {
 
 /**
  * Convert string to array of character codes
- * @param  {string} s The string
+ * @param  {string} s - The string
  * @return {Array} an array of character codes
  */
 function toCharCodes(s) {
@@ -197,7 +217,7 @@ function toCharCodes(s) {
 
 /**
  * Create array with constant value
- * @param  {Number} l The length of the array to make
+ * @param  {Number} l - The length of the array to make
  * @return {Array} an array of all 0s
  */
 function zeroArray(l) {
@@ -210,11 +230,13 @@ function zeroArray(l) {
 
 /**
  * Use a random encryption when PMed/mentioned/replied without command
- * @param {string} type - The type of event. Only responds if this is 'mentioned'
+ * @param {string} type - The type of event. Only responds if this is
+ *                        'private_message', 'mentioned', or 'replied'.
  * @param {string} notification - The notification to respond to
  * @param {string} topic - Unused.
  * @param {string} post - The post the notification was for
- * @param {function} callback - The callback to notify when processing is complete.
+ * @param {function} callback - The callback to notify when processing is
+ *                              complete.
  */
 exports.onNotify = function (type, notification, topic, post, callback) {
     if (!post || !post.cleaned ||
